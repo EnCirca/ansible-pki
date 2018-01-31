@@ -1,0 +1,12 @@
+# Install PKI packages [[[
+- name: Install PKI packages
+  yum:
+    name: '{{ item }}'
+    state: 'latest'
+  with_flattened:
+    - '{{ pki_base_packages }}'
+    - '{{ pki_acme_packages
+          if (pki_acme|bool or pki_acme_install|bool)
+          else [] }}'
+    - '{{ pki_packages }}'
+  when: pki_enabled | bool

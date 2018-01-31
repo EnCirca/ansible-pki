@@ -1,5 +1,9 @@
 ---
 # .. vim: foldmarker=[[[,]]]:foldmethod=marker
+- name: Ensure debops is installed
+  pip:
+    name: debops
+    state: present
 
 - name: DebOps pre_tasks hook
   include: "{{ lookup('task_src', 'pki/pre_main.yml') }}"
@@ -18,24 +22,15 @@
                             if (ansible_local|d() and ansible_local.root|d() and
                                 ansible_local.root.lib|d())
                             else "/usr/local/lib") + "/pki" }}'
+  tags: [debug_pki_initialization]
 
 # Install PKI packages [[[
-- name: Install PKI packages
-  apt:
-    name: '{{ item }}'
-    state: 'latest'
-    install_recommends: False
-    cache_valid_time: '{{ ansible_local.core.cache_valid_time
-                          if (ansible_local|d() and ansible_local.core|d() and
-                              ansible_local.core.cache_valid_time|d())
-                          else "86400" }}'
-  with_flattened:
-    - '{{ pki_base_packages }}'
-    - '{{ pki_acme_packages
-          if (pki_acme|bool or pki_acme_install|bool)
-          else [] }}'
-    - '{{ pki_packages }}'
-  when: pki_enabled | bool
+- include: centos/7/packages.yml
+  when: pki_is_centos7
+
+- include: debian/packages.yml
+  when: pki_is_debian
+
 # .. ]]]
 
 # Assert that required dependencies are met as documented [[[
@@ -134,6 +129,44 @@
     owner: 'root'
     group: 'root'
     mode: '0644'
+
+- name: Debug PKI realms
+  environment:
+    PKI_ROOT: '{{ pki_root }}'
+    PKI_ACME: '{{ (item.acme | d(pki_acme)) | bool | lower }}'
+    PKI_INTERNAL: '{{ (item.internal | d(pki_internal)) | bool | lower }}'
+    PKI_LIBRARY: '{{ item.library | d(pki_library) }}'
+    PKI_ACME_LIBRARY: '{{ item.acme_library | d(pki_acme_library) }}'
+  debug:
+    msg: |
+           "{{ pki_fact_lib_path }}/pki-realm" init -n "{{ item.name }}"
+           --authority-preference "{{ (item.authority_preference | d(pki_authority_preference)) | join('/') }}"
+           --library "{{ item.library | d(pki_library) }}"
+           --realm-key-size "{{ item.realm_key_size | d(pki_realm_key_size) }}"
+           --internal "{{ (item.internal | d(pki_internal)) | bool | lower }}"
+           --private-dir-group "{{ item.private_dir_group | d(pki_private_group) }}"
+           --private-file-group "{{ item.private_file_group | d(pki_private_group) }}"
+           --private-dir-acl-groups "{{ (item.private_dir_acl_groups | d(pki_private_dir_acl_groups)) | join('/') }}"
+           --private-file-acl-groups "{{ (item.private_file_acl_groups | d(pki_private_file_acl_groups)) | join('/') }}"
+           --acme-ca "{{ item.acme_ca | d(pki_acme_ca) }}"
+           --acme-ca-api "{{ item.acme_ca_api | d(pki_acme_ca_api_map[item.acme_ca|d(pki_acme_ca)]) }}"
+           --acme-default-subdomains "{{ (item.acme_default_subdomains | d(pki_acme_default_subdomains)) | join('/') }}"
+           --acme-challenge-dir "{{ item.acme_challenge_dir | d(pki_acme_challenge_dir) }}"
+           --default-domain "{{ item.default_domain | d(pki_default_domain) }}"
+           --default-subdomains "{{ (item.default_subdomains | d(pki_default_subdomains)) | join('/') }}"
+           --dhparam "{{ (item.dhparam | d(pki_dhparam)) | bool | lower }}"
+           --dhparam-file "{{ item.dhparam_file | d(pki_dhparam_file) }}"
+           --selfsigned-sign-days "{{ item.selfsigned_sign_days|d('365') }}"
+  with_flattened:
+    - '{{ pki_realms }}'
+    - '{{ pki_group_realms }}'
+    - '{{ pki_host_realms }}'
+    - '{{ pki_default_realms }}'
+    - '{{ pki_dependent_realms }}'
+  when: (pki_enabled|bool and item.name is defined and
+         (item.enabled|d(True) | bool) and
+         (item.when|d(True) | bool))
+  tags: [debug_pki_initialization]
 
 - name: Initialize PKI realms
   environment:
@@ -301,6 +334,7 @@
          ((item.internal|d(True) | bool) and pki_internal|bool) and
          (item.enabled|d(True) | bool) and
          (item.when|d(True) | bool))
+  tags: [upload_cert_req]
 # ]]]
 
 # PKI authorities [[[

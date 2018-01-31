@@ -1,11 +1,10 @@
 ---
 
-- name: Set default trust policy for new certificates
-  debconf:
-    name: 'ca-certificates'
-    question: 'ca-certificates/trust_new_crts'
-    vtype: 'select'
-    value: '{{ "yes" if (pki_system_ca_certificates_trust_new | bool) else "no" }}'
+- include: redhat/centos/7/ca_certificate_trust.yml
+  when: pki_is_centos7
+
+- include: debian/ca_certificate_trust.yml
+  when: pki_is_debian
 
 - name: Get list of known certificates
   shell: grep -E -e '^[^#].*$' /etc/ca-certificates.conf | sed -e 's/^!//'
