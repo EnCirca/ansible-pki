@@ -250,11 +250,12 @@ pki_create_acme_challenge_dir: '{{ True if (ansible_local|d() and ansible_local.
 #
 # List of APT packages to install by default on the remote host for
 # cryptographic support.
+pki_is_debian: "{{ ansible_os_family == 'Debian'  }}"
+pki_is_centos7: "{{ ansible_distribution == 'CentOS' and ansible_distribution_major_version == '7' }}"
 pki_base_packages_debian: [ 'ssl-cert', 'make', 'ca-certificates', 'gnutls-bin', 'openssl', 'acl' ]
 pki_base_packages_centos7: [ 'make', 'ca-certificates', 'crypto-utils', 'gnutls', 'gnutls-utils', 'openssl', 'acl' ]
-pki_is_debian: "{{ ansible_os_family == 'Debian'  }}"
-pki_is_centos7: "{{ ansible_distribution == 'CentOS' and ansible_distribution_major_version == 7 }}"
-pki_base_packages: "{{ pki_is_debian | ternary(pki_base_packages_debian, ( pki_is_centos7 | ternary(pki_base_packages_centos7, []))) }}"
+pki_base_packages_centos7_or_nada: "{{ pki_is_centos7 | ternary(pki_base_packages_centos7, []) }}"
+pki_base_packages: "{{ pki_is_debian | ternary(pki_base_packages_debian, pki_base_packages_centos7_or_nada) }}"
 
                                                                    # ]]]
 # .. envvar:: pki_acme_packages [[[

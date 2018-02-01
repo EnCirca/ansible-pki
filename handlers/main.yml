@@ -6,10 +6,12 @@
 - name: Update ca-certificates.crt
   command: update-ca-certificates
   notify: [ 'Install ca-certificates.crt into Postfix chroot' ]
+  when: pki_is_debian
 
 - name: Regenerate ca-certificates.crt
   command: update-ca-certificates --fresh
   notify: [ 'Install ca-certificates.crt into Postfix chroot' ]
+  when: pki_is_debian
 
 - name: Reconfigure ca-certificates
   environment:

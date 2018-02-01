@@ -1,9 +1,9 @@
 ---
 
-- include: redhat/centos/7/ca_certificate_trust.yml
+- include: redhat/centos/7/ca_certificates_trust.yml
   when: pki_is_centos7
 
-- include: debian/ca_certificate_trust.yml
+- include: debian/ca_certificates_trust.yml
   when: pki_is_debian
 
 - name: Get list of known certificates
